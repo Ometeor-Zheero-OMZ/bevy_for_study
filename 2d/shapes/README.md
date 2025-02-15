@@ -8,4 +8,4 @@ https://github.com/bevyengine/bevy/blob/latest/examples/2d/2d_shapes.rs
 
 ### 画像
 
-[サンプル](./img/sample.png)
+![サンプル](./img/sample.png)
