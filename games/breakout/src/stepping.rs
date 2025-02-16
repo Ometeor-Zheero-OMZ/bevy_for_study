@@ -1,19 +1,10 @@
 use bevy::{app::MainScheduleOrder, ecs::schedule::*, prelude::*};
 
-/// Independent [`Schedule`] for stepping systems.
-///
-/// The stepping systems must run in their own schedule to be able to inspect
-/// all the other schedules in the [`App`].  This is because the currently
-/// executing schedule is removed from the [`Schedules`] resource while it is
-/// being run.
-/// 
 /// 独立した [`Schedule`] を定義し、デバッグ用のステッピング処理を行う。
 /// スケジュールを独立させることで、他のスケジュールを調査できるようにする。
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 struct DebugSchedule;
 
-/// Plugin to add a stepping UI to an example
-/// 
 /// ステッピング UI を追加するためのプラグイン
 #[derive(Default)]
 pub struct SteppingPlugin {
@@ -23,16 +14,12 @@ pub struct SteppingPlugin {
 }
 
 impl SteppingPlugin {
-    /// add a schedule to be stepped when stepping is enabled
-    /// 
     /// ステッピング対象のスケジュールを追加する
     pub fn add_schedule(mut self, label: impl ScheduleLabel) -> SteppingPlugin {
         self.schedule_labels.push(label.intern());
         self
     }
 
-    /// Set the location of the stepping UI when activated
-    /// 
     /// ステッピング UI の位置を設定する
     pub fn at(self, left: Val, top: Val) -> SteppingPlugin {
         SteppingPlugin { top, left, ..self }
@@ -47,17 +34,11 @@ impl Plugin for SteppingPlugin {
             return;
         }
 
-        // create and insert our debug schedule into the main schedule order.
-        // We need an independent schedule so we have access to all other
-        // schedules through the `Stepping` resource
-        //
         // デバッグ用の独立したスケジュールを作成し、メインスケジュールの実行順序に追加
         app.init_schedule(DebugSchedule);
         let mut order = app.world_mut().resource_mut::<MainScheduleOrder>();
         order.insert_after(Update, DebugSchedule);
 
-        // create our stepping resource
-        //
         // ステッピングリソースを作成し、追加されたスケジュールを登録
         let mut stepping = Stepping::new();
         for label in &self.schedule_labels {
@@ -65,8 +46,6 @@ impl Plugin for SteppingPlugin {
         }
         app.insert_resource(stepping);
 
-        // add our startup & stepping systems
-        //
         // UI の状態管理用リソースを挿入
         app.insert_resource(State {
             ui_top: self.top,
@@ -85,21 +64,15 @@ impl Plugin for SteppingPlugin {
     }
 }
 
-/// Struct for maintaining stepping state
-/// 
 /// ステッピング UI の状態を管理するリソース
 #[derive(Resource, Debug)]
 struct State {
-    // vector of schedule/nodeid -> text index offset
     systems: Vec<(InternedScheduleLabel, NodeId, usize)>, // システムの情報
 
-    // ui positioning
     ui_top: Val,
     ui_left: Val,
 }
 
-/// condition to check if the stepping UI has been constructed
-/// 
 /// UI が初期化されているかどうかを判定する条件関数
 fn initialized(state: Res<State>) -> bool {
     !state.systems.is_empty()
@@ -111,12 +84,6 @@ const FONT_BOLD: &str = "fonts/FiraSans-Bold.ttf";
 #[derive(Component)]
 struct SteppingUi;
 
-/// Construct the stepping UI elements from the [`Schedules`] resource.
-///
-/// This system may run multiple times before constructing the UI as all of the
-/// data may not be available on the first run of the system.  This happens if
-/// one of the stepping schedules has not yet been run.
-/// 
 /// ステッピング UI を構築するシステム
 fn build_ui(
     mut commands: Commands,
@@ -132,9 +99,6 @@ fn build_ui(
         return;
     };
 
-    // go through the stepping schedules and construct a list of systems for
-    // each label
-    //
     // スケジュール内のシステムをリスト化
     for label in schedule_order {
         let schedule = schedules.get(*label).unwrap();
@@ -147,32 +111,24 @@ fn build_ui(
             TextColor(FONT_COLOR),
         ));
 
-        // grab the list of systems in the schedule, in the order the
-        // single-threaded executor would run them.
         let Ok(systems) = schedule.systems() else {
             return;
         };
 
         for (node_id, system) in systems {
-            // skip bevy default systems; we don't want to step those
             if system.name().starts_with("bevy") {
                 always_run.push((*label, node_id));
                 continue;
             }
 
-            // Add an entry to our systems list so we can find where to draw
-            // the cursor when the stepping cursor is at this system
-            // we add plus 1 to account for the empty root span
             state.systems.push((*label, node_id, text_spans.len() + 1));
 
-            // Add a text section for displaying the cursor for this system
             text_spans.push((
                 TextSpan::new("   "),
                 TextFont::default(),
                 TextColor(FONT_COLOR),
             ));
 
-            // add the name of the system to the ui
             text_spans.push((
                 TextSpan(format!("{}\n", system.name())),
                 TextFont::default(),
@@ -214,7 +170,6 @@ fn build_stepping_hint(mut commands: Commands) {
         "Bevy was compiled without stepping support. Run with `--features=bevy_debug_stepping` to enable stepping."
     };
     info!("{}", hint_text);
-    // stepping description box
     commands.spawn((
         Text::new(hint_text),
         TextFont {
@@ -236,7 +191,7 @@ fn handle_input(keyboard_input: Res<ButtonInput<KeyCode>>, mut stepping: ResMut<
     if keyboard_input.just_pressed(KeyCode::Slash) {
         info!("{:#?}", stepping);
     }
-    // grave key to toggle stepping mode for the FixedUpdate schedule
+
     if keyboard_input.just_pressed(KeyCode::Backquote) {
         if stepping.is_enabled() {
             stepping.disable();
@@ -251,7 +206,6 @@ fn handle_input(keyboard_input: Res<ButtonInput<KeyCode>>, mut stepping: ResMut<
         return;
     }
 
-    // space key will step the remainder of this frame
     if keyboard_input.just_pressed(KeyCode::Space) {
         debug!("continue");
         stepping.continue_frame();
@@ -268,8 +222,6 @@ fn update_ui(
     ui: Single<(Entity, &Visibility), With<SteppingUi>>, // ステッピング UI のエンティティと可視状態
     mut writer: TextUiWriter, // UI のテキストを更新するためのライター
 ) {
-    // ensure the UI is only visible when stepping is enabled
-    //
     // ステッピング UI を有効・無効の状態にする
     let (ui, vis) = *ui;
     match (vis, stepping.is_enabled()) {
@@ -285,8 +237,6 @@ fn update_ui(
         }
     }
 
-    // if we're not stepping, there's nothing more to be done here.
-    //
     // ステッピングが無効ならこれ以上処理しない
     if !stepping.is_enabled() {
         return;
@@ -294,8 +244,6 @@ fn update_ui(
 
     // ステッピングのカーソル位置を取得
     let (cursor_schedule, cursor_system) = match stepping.cursor() {
-        // no cursor means stepping isn't enabled, so we're done here
-        //
         // カーソルがない場合 (ステッピングが有効でも選択されたシステムがない場合) は処理を終了
         None => return,
         Some(c) => c, // カーソルがある場合は取得

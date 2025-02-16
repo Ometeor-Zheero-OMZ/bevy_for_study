@@ -5,3 +5,6 @@ edition = "2021"
 
 [dependencies]
 bevy = "0.15.2"
+
+[features]
+bevy_debug_stepping = []
