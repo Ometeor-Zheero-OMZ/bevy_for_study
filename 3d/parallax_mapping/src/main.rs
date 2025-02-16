@@ -155,7 +155,7 @@ fn spin(time: Res<Time>, mut query: Query<(&mut Transform, &Spin)>) {
     }
 }
 
-// Camera positions to cycle through when left-clicking
+// Camera positions to cycle through when left-clicking.
 const CAMERA_POSITIONS: &[Transform] = &[
     Transform {
         translation: Vec3::new(1.5, 1.5, 1.5),
@@ -202,7 +202,7 @@ fn setup(
     // open the depth map, and do Filters → Generic → Normal Map
     // You should enable the "flip X" checkbox.
     let normal_handle = asset_server.load_with_settings(
-        "./img/cube_normal.png",
+        "textures/parallax_example/cube_normal.png",
         // The normal map texture is in linear color space. Lighting won't look correct
         // if `is_srgb` is `true`, which is the default.
         |settings: &mut ImageLoaderSettings| settings.is_srgb = false,
@@ -212,7 +212,7 @@ fn setup(
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(1.5, 1.5, 1.5).looking_at(Vec3::ZERO, Vec3::Y),
-        CameraController
+        CameraController,
     ));
 
     // light
@@ -222,7 +222,7 @@ fn setup(
                 shadows_enabled: true,
                 ..default()
             },
-            Transform::from_xyz(2.0, 1.0, -1.1)
+            Transform::from_xyz(2.0, 1.0, -1.1),
         ))
         .with_children(|commands| {
             // represent the light source as a sphere
@@ -240,7 +240,7 @@ fn setup(
             reflectance: 0.18,
             ..Color::srgb_u8(0, 80, 0).into()
         })),
-        Transform::from_xyz(0.0, -1.0, 0.0)
+        Transform::from_xyz(0.0, -1.0, 0.0),
     ));
 
     let parallax_depth_scale = TargetDepth::default().0;
@@ -248,11 +248,11 @@ fn setup(
     let parallax_mapping_method = CurrentMethod::default();
     let parallax_material = materials.add(StandardMaterial {
         perceptual_roughness: 0.4,
-        base_color_texture: Some(asset_server.load("./img/cube_color.png")),
+        base_color_texture: Some(asset_server.load("textures/parallax_example/cube_color.png")),
         normal_map_texture: Some(normal_handle),
         // The depth map is a grayscale texture where black is the highest level and
         // white the lowest.
-        depth_map: Some(asset_server.load("./img/cube_depth.png")),
+        depth_map: Some(asset_server.load("textures/parallax_example/cube_depth.png")),
         parallax_depth_scale,
         parallax_mapping_method: parallax_mapping_method.0,
         max_parallax_layer_count,
@@ -265,17 +265,17 @@ fn setup(
                 // needs tangents generated.
                 Mesh::from(Cuboid::default())
                     .with_generated_tangents()
-                    .unwrap()
-            )
+                    .unwrap(),
+            ),
         ),
         MeshMaterial3d(parallax_material.clone()),
-        Spin { speed: 0.3 }
+        Spin { speed: 0.3 },
     ));
 
     let background_cube = meshes.add(
         Mesh::from(Cuboid::new(40.0, 40.0, 40.0))
             .with_generated_tangents()
-            .unwrap()
+            .unwrap(),
     );
 
     let background_cube_bundle = |translation| {
@@ -283,7 +283,7 @@ fn setup(
             Mesh3d(background_cube.clone()),
             MeshMaterial3d(parallax_material.clone()),
             Transform::from_translation(translation),
-            Spin { speed: -0.1 }
+            Spin { speed: -0.1 },
         )
     };
     commands.spawn(background_cube_bundle(Vec3::new(45., 0., 0.)));
